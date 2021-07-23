@@ -1,0 +1,15 @@
+<VirtualHost *:80>
+    DocumentRoot /home/runner/work/TonyHaikara/silk-platform/public
+    ServerName localhost
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+    <Directory "/home/runner/work/TonyHaikara/silk-platform/public">
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    <Directory /usr/lib/cgi-bin>
+        Require all granted
+    </Directory>
+</VirtualHost>

@@ -1,0 +1,153 @@
+name: Behat tests 🐞
+
+on: [push, pull_request]
+
+jobs:
+    build:
+        name: PHP ${{ matrix.php-versions }} Test on ${{ matrix.operating-system }}
+        runs-on: ubuntu-20.04
+
+        strategy:
+            fail-fast: false
+            matrix:
+                operating-system: [ubuntu-latest]
+                php-versions: ['8.0']
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+
+            - name: Setup apache
+              run: |
+                sudo apt-get install software-properties-common
+                sudo add-apt-repository ppa:ondrej/php
+                sudo apt-get update
+                sudo apt-get install nodejs npm apache2 php${{ matrix.php-versions }} php${{ matrix.php-versions }}-common php${{ matrix.php-versions }}-cli libapache2-mod-php${{ matrix.php-versions }}
+                sudo a2enmod rewrite actions
+                sudo cp -f .github/gh-apache /etc/apache2/sites-available/000-default.conf
+                sudo chmod 777 -R $HOME
+                cat /etc/apache2/sites-available/000-default.conf
+                sudo service apache2 restart
+                sudo systemctl restart apache2
+
+            - name: Setup PHP, with composer and extensions
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php-versions }}
+                  extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, gd, json, soap, zip, bcmath
+                  ini-values: post_max_size=256M, max_execution_time=600, memory_limit=4096M
+
+            - name: Get composer cache directory
+              id: composer-cache
+              run: echo "::set-output name=dir::$(composer config cache-files-dir)"
+
+            - name: Cache composer dependencies
+              uses: actions/cache@v2
+              with:
+                  path: ${{ steps.composer-cache.outputs.dir }}
+                  # Use composer.json for key, if composer.lock is not committed.
+                  # key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.json') }}
+                  key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+                  restore-keys: ${{ runner.os }}-composer-
+
+            - name: Install dependencies with composer
+              run: composer install --prefer-dist --no-progress --optimize-autoloader
+
+            - name: Install Yarn
+              run: |
+                  sudo npm install -g yarn
+                  yarn set version berry
+                  yarn --version
+
+            - name: Get yarn cache directory
+              id: yarn-cache
+              run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
+
+            - name: Cache yarn dependencies
+              uses: actions/cache@v2
+              with:
+                  path: ${{ steps.yarn-cache.outputs.dir }}
+                  # Use composer.json for key, if composer.lock is not committed.
+                  # key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.json') }}
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: ${{ runner.os }}-yarn-
+
+            - name: Install JS dependencies
+              run: |
+                  yarn install
+
+            - name: Yarn run encore
+              run: |
+                  yarn run encore production
+
+            - name: Start chrome
+              run: |
+                sudo apt-get install google-chrome-stable
+                google-chrome --version
+                google-chrome-stable --version
+                google-chrome-stable --headless --disable-gpu --remote-debugging-port=9222 http://localhost &
+                whereis google-chrome-stable
+
+            # https://github.com/marketplace/actions/setup-chromedriver
+            - name: Start chromedriver
+              uses: nanasess/setup-chromedriver@master
+              with:
+                  # Optional: do not specify to match Chrome's version
+                  chromedriver-version: '88.0.4324.96'
+
+            - run: |
+                export DISPLAY=:99
+                chromedriver --url-base=/wd/hub &
+                sudo Xvfb -ac :99 -screen 0 1280x1024x24 > /dev/null 2>&1 & # optional
+
+            - name: Set up JDK 1.8
+              uses: actions/setup-java@v1
+              with:
+                  java-version: 1.8
+
+            - name: Get Selenium
+              run: |
+                wget http://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar --quiet
+
+            - name: Run Selenium
+              run: |
+                java -version
+                export DISPLAY=:99.0
+                sudo xvfb -ac :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
+                java -Dwebdriver.chrome.driver=/usr/bin/chromedriver -jar selenium-server-standalone-3.141.59.jar  -log selenium.log > /dev/null &
+
+            - name: Start mysql service
+              run: |
+                sudo /etc/init.d/mysql start
+                sudo systemctl restart apache2
+
+            - name: Check settings
+              run: |
+                  php vendor/bin/requirements-checker
+                  php -ini
+                  php -v
+                  php -m
+
+            - name: Check SILKC
+              run: |
+                 sudo chmod 777 -R ${{ github.workspace }}
+                 curl http://localhost/
+
+            - name: Install SILKC
+              run: |
+                  echo "APP_ENV=dev" >> .env.local
+                  echo "DATABASE_URL=mysql://root:root@localhost:3306/master?serverVersion=5.7" >> .env.local
+                  php bin/console doctrine:database:create
+                  php bin/console doctrine:schema:update --force
+                  mysql -u root -proot master < data.sql
+                  php bin/console doctrine:fixtures:load --group=AppFixtures --append --env dev
+                  sudo chmod -R 777 var/cache var/log
+
+            - name: Behat tests
+              run: |
+                  cd ${{ github.workspace }}/tests/behat
+                  ../../vendor/behat/behat/bin/behat features/actionUserLogin.feature -vvv
+
+            - name: The job has failed
+              if: ${{ failure() }}
+              run: |
+                  cat selenium.log
