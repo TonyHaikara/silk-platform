@@ -77,7 +77,7 @@ jobs:
 
             - name: Yarn run encore
               run: |
-                  yarn run encore production
+                  yarn encore production
 
             - name: Start chrome
               run: |
@@ -145,6 +145,7 @@ jobs:
             - name: Behat tests
               run: |
                   cd ${{ github.workspace }}/tests/behat
+                  cp behat.dist.yml behat.yml
                   ../../vendor/behat/behat/bin/behat features/actionUserLogin.feature -vvv
 
             - name: The job has failed
