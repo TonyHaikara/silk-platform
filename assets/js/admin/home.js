@@ -1,4 +1,4 @@
-import $ from 'jquery';
+//import $ from 'jquery';
 //import '../../css/bootstrap-extended.css';
 
 require('bootstrap');

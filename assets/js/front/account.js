@@ -1,4 +1,4 @@
-import $ from 'jquery';
+//import $ from 'jquery';
 import autocomplete from 'autocompleter';
 //import '../../css/bootstrap-extended.css';
 

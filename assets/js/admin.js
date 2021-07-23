@@ -1,4 +1,4 @@
-import $ from 'jquery';
+//import $ from 'jquery';
 require('bootstrap');
 const bootbox = require('bootbox/bootbox');
 
