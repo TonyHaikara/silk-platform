@@ -1,6 +1,4 @@
-//import $ from 'jquery';
 import autocomplete from 'autocompleter';
-//import '../../css/bootstrap-extended.css';
 
 // any CSS you import will output into a single css file (app.css in this case)
 import '../../scss/elements/header.scss';

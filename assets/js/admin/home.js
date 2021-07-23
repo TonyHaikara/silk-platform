@@ -1,6 +1,3 @@
-//import $ from 'jquery';
-//import '../../css/bootstrap-extended.css';
-
 require('bootstrap');
 var moment = require('moment');
 require('chart.js');
