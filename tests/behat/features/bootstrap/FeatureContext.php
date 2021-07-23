@@ -17,9 +17,9 @@ class FeatureContext extends MinkContext
     }
 
     /**
-     * @Given /^I am a platform administrator$/
+     * @Given /^I am an admin$/
      */
-    public function iAmAPlatformAdministrator()
+    public function iAmAnAdmin()
     {
         $this->iAmLoggedAs('admin', 'admin');
     }
@@ -252,5 +252,17 @@ class FeatureContext extends MinkContext
             throw new Exception("Url with name: $name not found");
         }
         $this->visit($url);
+    }
+
+    /**
+     * @When /^I load the tab with id "([^"]*)"$/
+     */
+    public function iLoadTheTabWithId($id)
+    {
+        $this->getSession()->executeScript("
+            document.querySelector('$id').click();
+        ");
+
+        return true;
     }
 }
