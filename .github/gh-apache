@@ -1,9 +1,9 @@
 <VirtualHost *:80>
-    DocumentRoot /home/runner/work/TonyHaikara/silk-platform/public
+    DocumentRoot /home/runner/work/silk-platform/silk-platform/public
     ServerName localhost
     SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 
-    <Directory "/home/runner/work/TonyHaikara/silk-platform/public">
+    <Directory "/home/runner/work/silk-platform/silk-platform/public">
         Options Indexes FollowSymLinks
         AllowOverride All
         Require all granted
