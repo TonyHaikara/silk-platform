@@ -13,6 +13,7 @@ use App\Repository\TrainingRepository;
 use App\Repository\TrainingFeedbackRepository;
 use App\Repository\OccupationRepository;
 use App\Repository\OccupationSkillRepository;
+use App\Repository\UserSearchRepository;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use App\Repository\UserOccupationRepository;
@@ -354,5 +355,55 @@ class ApiController extends AbstractController
         $em->flush();
 
         return $this->json(['result' => $user->getIsSearchesKept()], 200, ['Access-Control-Allow-Origin' => '*']);
+    }
+
+    /**
+     * @Route("/delete_search_history", name="delete_search_history", methods={"POST"})
+     */
+    public function delete_search_history(
+        Request $request,
+        UserRepository $userRepository,
+        UserSearchRepository $userSearchRepository,
+        OccupationRepository $occupationRepository,
+        SkillRepository $skillRepository
+    )
+    {
+        $em = $this->getDoctrine()->getManager();
+
+        $user = $this->getUser();
+
+        $data = $request->request->all();
+
+        if (!$data || !is_array($data) || !array_key_exists('type', $data) || !array_key_exists('id', $data))
+            return new JsonResponse(['message' => 'Missing parameter'], Response::HTTP_BAD_REQUEST);
+
+        if ($data['type'] === 'occupation') {
+            $occupation = $occupationRepository->findOneBy(['id' => $data['id']]);
+            if (!$occupation)
+                return new JsonResponse(['message' => 'Bad parameter'], Response::HTTP_BAD_REQUEST);
+            $searches = $userSearchRepository->findBy(['user' => $user, 'occupation' => $occupation, 'isActive' => true]);
+            if ($searches) {
+                foreach ($searches as $search) {
+                    $search->setIsActive(false);
+                    $em->persist($search);
+                    $em->flush();
+                }
+            }
+        } else if ($data['type'] === 'skill') {
+            $skill = $skillRepository->findOneBy(['id' => $data['id']]);
+            if (!$skill)
+                return new JsonResponse(['message' => 'Bad parameter'], Response::HTTP_BAD_REQUEST);
+            $searches = $userSearchRepository->findBy(['user' => $user, 'skill' => $skill, 'isActive' => true]);
+            if ($searches) {
+                foreach ($searches as $search) {
+                    $search->setIsActive(false);
+                    $em->persist($search);
+                    $em->flush();
+                }
+            }
+        } else
+            return new JsonResponse(['message' => 'Missing parameter'], Response::HTTP_BAD_REQUEST);
+
+        return $this->json(['result' => true], 200, ['Access-Control-Allow-Origin' => '*']);
     }
 }
